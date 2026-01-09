@@ -1,5 +1,11 @@
-import pint
-ureg = pint.UnitRegistry()
+from fcs.utils import add_freecad_to_path, print_warning, pint_to_freecad
+add_freecad_to_path()
+
+from os.path import exists
+from FreeCAD import Units
+
+from pint import UnitRegistry, Quantity
+ureg = UnitRegistry()
 
 from fcs.constants import *
 
@@ -15,14 +21,15 @@ class Spreadsheet():
     def __init__(self, doc):
 
         # Get the sheet containing parameters
+        # https://github.com/FreeCAD/FreeCAD/blob/main/src/Mod/Spreadsheet/App/Sheet.pyi
         self._sheet = doc.getObject(SPREADSHEET_OBJ)
 
         # Find basic info about the sheet
         self.name_column          = None
         self.value_column         = None
         self.description_column   = None
-        self.cols: list[str] = []
-        self.rows: list[int] = []
+        self.cols: list[str]      = []
+        self.rows: list[int]      = []
         self.title_row            = -1
 
         self.get_info()
@@ -77,18 +84,6 @@ class Spreadsheet():
         self.rows.sort()
         assert self.title_row == min(self.rows)
 
-    # def row_name(self, row: int):
-    #     coord = f"{self.name_column}{row}"
-    #     return self.get(coord, "")
-
-    # def row_val(self, row: int):
-    #     coord = f"{self.value_column}{row}"
-    #     return self.get(coord, 0)
-
-    # def row_desc(self, row: int):
-    #     coord = f"{self.description_column}{row}"
-    #     return self.get(coord, "")
-
     def get(self, coord: str, default = ""):
 
         to_return = None
@@ -103,7 +98,7 @@ class Spreadsheet():
 
         return to_return
 
-    def get_row_info(self, row: int):
+    def read_row(self, row: int):
 
         name  = None
         val   = None
@@ -116,6 +111,7 @@ class Spreadsheet():
         val   = self.get(coord, None)
         if name is None:
             name = self._sheet.getAlias(coord)
+
         if val is not None:
 
             # Get FreeCAD type https://wiki.freecad.org/Quantity#Unit
@@ -132,4 +128,49 @@ class Spreadsheet():
         coord = f"{self.description_column}{row}"
         desc = self.get(coord, "")
 
+        if name is None:
+            name = ""
+            print_warning(f"No name found for row with value = {val}")
+
+        if desc is None:
+            desc = ""
+
         return name, val, desc
+
+    def reset(self):
+
+        # Remove content rows. First row is always the title row
+        for row in reversed(self.rows[1:]):
+            self._sheet.removeRows(str(row), 1)
+
+        # Recompute info
+        self.get_info()
+
+    def write_row(self, name: str, val: Quantity | float | int, desc: str = ""):
+
+        assert type(name) is str, f"Type of argument 'name' must be str not {type(name)}"
+        assert type(desc) is str, f"Type of argument 'desc' must be str not {type(desc)}"
+
+        # Get the next free row index
+        new_row_index = max(self.rows) + 1
+        self.rows.append(new_row_index)
+
+        # Set the name and description
+        self._sheet.set(f"{self.name_column}{new_row_index}", name)
+        self._sheet.set(f"{self.description_column}{new_row_index}", desc)
+
+        # Set the value
+        val_coord = f"{self.value_column}{new_row_index}"
+        if isinstance(val, Quantity):
+            unit = pint_to_freecad(val.units)
+            self._sheet.set(val_coord, f"{val.magnitude} {unit}")
+        elif (type(val) is float) or (type(val) is int):
+            self._sheet.setFloatProperty(val_coord, str(val))
+        else:
+            raise TypeError( f"Type of argument 'val' ({val}) must be Quantity, float or int, not {type(val)}")
+
+        # Set the alias
+        self._sheet.setAlias(val_coord, name)
+
+    def recompute(self):
+        self._sheet.recompute()

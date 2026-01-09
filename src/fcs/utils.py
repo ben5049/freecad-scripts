@@ -2,6 +2,7 @@ from os import name
 from os.path import join, exists
 from sys import path
 
+
 def add_freecad_to_path():
 
     freecad_python_library = ""
@@ -25,3 +26,19 @@ def add_freecad_to_path():
 
     assert exists(join(freecad_path, freecad_python_library)), f"Couldn't find '{freecad_python_library}' in '{freecad_path}'"
     path.append(freecad_path)
+
+def print_warning(text: str = "", **kwargs):
+    print(f"\033[33mWARNING: {text}\033[0m", **kwargs)
+
+def pint_to_freecad(unit: str):
+
+    unit = str(unit)
+
+    if unit == "millimeter":
+        return "mm"
+    if unit == "degree":
+        return "deg"
+    else:
+        print_warning(f"Couldn't convert unit '{unit}', returning unconverted")
+
+    return unit
