@@ -2,6 +2,8 @@ from os import name
 from os.path import join, exists
 from sys import path
 
+from fcs.constants import *
+
 
 def add_freecad_to_path():
 
@@ -42,3 +44,30 @@ def pint_to_freecad(unit: str):
         print_warning(f"Couldn't convert unit '{unit}', returning unconverted")
 
     return unit
+
+def merge_params(params1, params2):
+
+    assert params1 is not None
+    assert params2 is not None
+
+    to_return = params1.copy()
+
+    # Add optional descriptions column
+    if PARAM_DESC not in params1:
+        to_return[PARAM_DESC] = [""] * len(params1[PARAM_NAME])
+
+    names2 = params2.get(PARAM_NAME)
+    vals2  = params2.get(PARAM_VAL)
+    descs2 = params2.get(PARAM_DESC)
+
+    # Add optional descriptions column
+    if descs2 is None:
+        descs2 = [""] * len(names2)
+
+    for name, val, desc in zip(names2, vals2, descs2):
+        if name not in params1[PARAM_NAME]:
+            to_return[PARAM_NAME].append(name)
+            to_return[PARAM_VAL].append(val)
+            to_return[PARAM_DESC].append(desc)
+
+    return to_return

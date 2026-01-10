@@ -18,11 +18,24 @@ def split_coord(coord):
 
 class Spreadsheet():
 
-    def __init__(self, doc):
+    def __init__(self, doc, name: str = None):
 
         # Get the sheet containing parameters
         # https://github.com/FreeCAD/FreeCAD/blob/main/src/Mod/Spreadsheet/App/Sheet.pyi
-        self._sheet = doc.getObject(SPREADSHEET_OBJ)
+
+        # If no name is provided default to the first spreadsheet found
+        self._sheet = None
+        if name is None:
+            for obj in doc.Objects:
+                if obj.TypeId == OBJ_SPREADSHEET:
+                    self._sheet = obj
+                    break
+        else:
+            self._sheet = doc.getObject(name)
+
+        # Still no spreadsheet: create one
+        if self._sheet is None:
+            self._sheet = doc.addObject(OBJ_SPREADSHEET, "Spreadsheet")
 
         # Find basic info about the sheet
         self.name_column          = None
@@ -31,6 +44,7 @@ class Spreadsheet():
         self.cols: list[str]      = []
         self.rows: list[int]      = []
         self.title_row            = -1
+        self.name: str            = self._sheet.Name
 
         self.get_info()
 
@@ -138,6 +152,7 @@ class Spreadsheet():
         return name, val, desc
 
     def reset(self):
+        print("Resetting spreadsheet")
 
         # Remove content rows. First row is always the title row
         for row in reversed(self.rows[1:]):
@@ -173,4 +188,39 @@ class Spreadsheet():
         self._sheet.setAlias(val_coord, name)
 
     def recompute(self):
+        print("Recomputing spreadsheet")
         self._sheet.recompute()
+
+    def extract_params(self) -> dict:
+        print("Extracting params")
+
+        params = {
+            SPREADSHEET_COL_NAME: [],
+            SPREADSHEET_COL_VAL:  [],
+            SPREADSHEET_COL_DESC: []
+        }
+
+        # Go through the rows and extract params
+        for row in self.rows:
+            if row == self.title_row:
+                continue
+
+            name, value, desc = self.read_row(row)
+            params[SPREADSHEET_COL_NAME].append(name)
+            params[SPREADSHEET_COL_VAL].append(value)
+            params[SPREADSHEET_COL_DESC].append(desc)
+
+        return params
+
+    def apply_params(self, params: dict):
+
+        # Clear the sheet before writing
+        self.reset()
+
+        # Write the params
+        print("Applying params")
+        for name, val, desc in zip(params[SPREADSHEET_COL_NAME], params[SPREADSHEET_COL_VAL], params[SPREADSHEET_COL_DESC]):
+            self.write_row(name=name, val=val, desc=desc)
+
+        # Update
+        self.recompute()

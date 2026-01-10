@@ -1,4 +1,4 @@
-from fcs.utils import add_freecad_to_path
+from fcs.utils import add_freecad_to_path, merge_params
 add_freecad_to_path()
 
 from os.path import exists
@@ -7,6 +7,7 @@ import FreeCAD
 
 from fcs.constants import *
 from fcs.spreadsheet import Spreadsheet
+from fcs.varset import get_varset_params
 
 
 def extract_params(file_path: str) -> dict:
@@ -20,25 +21,10 @@ def extract_params(file_path: str) -> dict:
 
     # Get spreadsheet, extract params
     sheet = Spreadsheet(doc=doc)
-    return extract_params_from_spreadsheet(sheet)
+    params = sheet.extract_params()
 
-def extract_params_from_spreadsheet(sheet: Spreadsheet) -> dict:
-
-    params = {
-        SPREADSHEET_COL_NAME: [],
-        SPREADSHEET_COL_VAL:  [],
-        SPREADSHEET_COL_DESC: []
-    }
-
-    # Go through the rows and extract params
-    for row in sheet.rows:
-        if row == sheet.title_row:
-            continue
-
-        name, value, desc = sheet.read_row(row)
-        params[SPREADSHEET_COL_NAME].append(name)
-        params[SPREADSHEET_COL_VAL].append(value)
-        params[SPREADSHEET_COL_DESC].append(desc)
+    # Get varsets params and merge
+    params = merge_params(params, get_varset_params(doc=doc))
 
     return params
 
