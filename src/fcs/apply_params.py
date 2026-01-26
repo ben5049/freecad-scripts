@@ -1,4 +1,4 @@
-from fcs.utils import add_freecad_to_path, print_warning, merge_params
+from fcs.utils import add_freecad_to_path, print_warning, merge_params, vals_equal
 add_freecad_to_path()
 
 from os.path import exists
@@ -10,7 +10,7 @@ from fcs.spreadsheet import Spreadsheet
 from fcs.varset import get_varset_params, create_varsets_from_params, remove_all_varsets
 
 
-def apply_params(file_path: str, params: dict, save_as: str = None):
+def apply_params(file_path: str, params: dict, save_as: str = None, spreadsheet: bool = False):
 
     assert SPREADSHEET_COL_NAME in params
     assert SPREADSHEET_COL_VAL in params
@@ -25,22 +25,28 @@ def apply_params(file_path: str, params: dict, save_as: str = None):
     print(f"Opening {file_path}")
     doc = FreeCAD.open(file_path)
 
-    # Get spreadsheet
-    sheet = Spreadsheet(doc=doc)
+    # Get old varset params
+    old_params = get_varset_params(doc=doc)
 
-    # Get old params to check if any will be deleted
-    old_params = merge_params(
-        sheet.extract_params(),
-        get_varset_params(doc=doc)
-    )
-    for name, val, desc in zip(old_params[SPREADSHEET_COL_NAME], old_params[SPREADSHEET_COL_VAL], old_params[SPREADSHEET_COL_DESC]):
-        if name not in params[SPREADSHEET_COL_NAME]:
+    # Get spreadsheet and merge old spreadsheet params
+    if spreadsheet:
+        sheet = Spreadsheet(doc=doc)
+        old_params = merge_params(sheet.extract_params(), old_params)
+
+    # Check if any old parameters will be deleted
+    for name, val, desc in zip(old_params[PARAM_NAME], old_params[PARAM_VAL], old_params[PARAM_DESC]):
+        if name not in params[PARAM_NAME]:
             print_warning(f"Parameter will be deleted: name = '{name}', val = {val}, desc = '{desc}'")
+        else:
+            new_val = params[PARAM_VAL][params[PARAM_NAME].index(name)]
+            if not vals_equal(val, new_val):
+                print(f"Parameter {name} changed: {val} -> {new_val}")
 
     # Apply new parameters
-    sheet.apply_params(params=params)
+    if spreadsheet:
+        sheet.apply_params(params=params)
     remove_all_varsets(doc=doc)
-    create_varsets_from_params(doc=doc, params=params, spreadsheet=sheet.name)
+    create_varsets_from_params(doc=doc, params=params, spreadsheet=sheet.name if spreadsheet else None)
 
     # Recompute the model and save changes
     print("Recomputing and saving changes")

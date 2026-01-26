@@ -2,6 +2,8 @@ from os import name
 from os.path import join, exists
 from sys import path
 
+from pint import Quantity
+
 from fcs.constants import *
 
 
@@ -71,3 +73,28 @@ def merge_params(params1, params2):
             to_return[PARAM_DESC].append(desc)
 
     return to_return
+
+def vals_equal(val1, val2):
+
+    val1_raw = None
+    val2_raw = None
+    equal = False
+
+    if isinstance(val1, Quantity):
+        val1_raw = val1.magnitude
+    elif (type(val1) is float) or (type(val1) is int):
+        val1_raw = float(val1)
+    else:
+        print_warning(f"Type of argument 'val1' ({val1}) expected to be Quantity, float or int, not {type(val1)}")
+        val1_raw = val1
+
+    if isinstance(val2, Quantity):
+        val2_raw = val2.magnitude
+    elif (type(val2) is float) or (type(val2) is int):
+        val2_raw = float(val2)
+    else:
+        print_warning(f"Type of argument 'val2 ({val2}) expected to be Quantity, float or int, not {type(val2)}")
+        val2_raw = val2
+
+    equal = val1_raw == val2_raw
+    return equal

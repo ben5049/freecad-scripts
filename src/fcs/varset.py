@@ -4,7 +4,7 @@ add_freecad_to_path()
 from os.path import exists
 from FreeCAD import Units
 
-from pint import UnitRegistry
+from pint import UnitRegistry, Quantity
 ureg = UnitRegistry()
 
 from fcs.constants import *
@@ -77,7 +77,12 @@ def create_varsets_from_params(doc, params: dict, spreadsheet: str = None):
 
         # Add value directly
         if spreadsheet is None:
-            setattr(varset, name, val)
+            if isinstance(val, Quantity):
+                setattr(varset, name, val.magnitude)
+            elif (type(val) is float) or (type(val) is int):
+                setattr(varset, name, val)
+            else:
+                raise TypeError( f"Type of argument 'val' ({val}) must be Quantity, float or int, not {type(val)}")
 
         # Add value with reference to a spreadsheet
         else:
